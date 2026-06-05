@@ -8,6 +8,9 @@ Act 1 grills **you** to lock the plan. Act 2 hands that plan to **OpenAI Codex**
 
 Built on [Matt Pocock's `grill-me` / `grill-with-docs`](https://github.com/mattpocock/skills) skills (MIT) — Act 1 is his work; the iterative cross-model Codex review (Act 2) is the addition.
 
+> ### 🚀 Want to go deeper?
+> This skill is one piece of the full system. Get the **Claude Code Masterclass** and join builders going further with agentic AI inside **[Chase AI+](https://www.skool.com/chase-ai/about)**.
+
 ## The skills
 
 | Skill | Act 1 | Act 2 | Use when |
@@ -63,7 +66,7 @@ Codex runs **read-only every round** — `-s read-only` on the first call, `-c s
 ## Credits
 
 - Act 1 (`grill-me`, `grill-with-docs`) © Matt Pocock — https://github.com/mattpocock/skills (MIT). See each skill's `THIRD-PARTY-NOTICES.md`.
-- Act 2 (iterative Codex review) and packaging by [Chase AI](https://youtube.com/@chaseai).
+- Act 2 (iterative Codex review) and packaging by [Chase AI](https://youtube.com/@chaseai). Go deeper in [Chase AI+](https://www.skool.com/chase-ai/about) (Claude Code Masterclass).
 
 ## License
 
