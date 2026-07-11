@@ -12,7 +12,7 @@ Built on [Matt Pocock's `grill-me` / `grill-with-docs`](https://github.com/mattp
 
 | Skill | Act 1 | Act 2 | Act 3 | Use when |
 |-------|-------|-------|-------|----------|
-| **`grill-me-codex`** | Claude interrogates you one question at a time until the decision tree is resolved | Codex adversarial review loop | optional → `codex-build` | Planning from scratch + want alignment AND a second-model check |
+| **`grill-me-codex`** | Claude consults you like a non-technical client — simple questions, brain-dumps welcome — and captures your goal in `intent.md` | Codex adversarial review loop, bounded by `intent.md` | optional → `codex-build` | Planning from scratch + want alignment AND a second-model check |
 | **`grill-with-docs-codex`** | Same, but challenges your plan against your project's `CONTEXT.md` glossary + writes ADRs inline | Codex review loop | optional → `codex-build` | Same, in a project with established terminology / architecture decisions |
 | **`codex-review`** | — (you already have a plan) | Codex review loop | optional → `codex-build` | You have a plan and just want the cross-model stress-test |
 | **`codex-build`** | — | — | Codex implements the frozen plan; Claude verifies | You have a reviewed spec and want the second model to type it |
@@ -24,8 +24,9 @@ Built on [Matt Pocock's `grill-me` / `grill-with-docs`](https://github.com/mattp
 3. **Rounds 2..N:** Claude revises; the *same* Codex session is resumed so it remembers its prior critiques and only checks whether they're addressed.
 4. Bounded by `MAX_ROUNDS` (default 5). Terminates on `APPROVED` or the cap (a flagged deadlock beats a fake "approved").
 5. **You gate twice only:** kickoff, and final sign-off before any code. Codex is read-only every round and never writes a file.
+6. **Discipline against spirals:** each round is classified CONVERGING/SPIRALING and gauged against `intent.md` (Codex is a reviewer, not the architect — off-intent findings are rejected); a spiraling round steps out instead of folding more machinery; and one fresh, cold no-memory check gates every APPROVED so convergence can't be manufactured.
 
-Two artifacts: `PLAN.md` (the clean final plan — the *what*) and `PLAN-REVIEW-LOG.md` (the full round-by-round argument — the *why*).
+Artifacts: `intent.md` (the plain-language goal, from the grill variants — the *what you want*), `PLAN.md` (Claude's technical translation — the *how*, what Codex reviews), and `PLAN-REVIEW-LOG.md` (the full round-by-round argument — the *why*).
 
 ## How Act 3 works (the build — roles flip)
 

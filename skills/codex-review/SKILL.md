@@ -71,7 +71,7 @@ Maintain `ROUND` (start 1) and `THREAD_ID` (empty until round 1 returns).
 
 **The review prompt** sent to Codex each round (adjust the task line):
 
-> You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` (and any repo files you need; you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, wrong assumptions, observability gaps, simpler alternatives. For each, give a one-line fix. Do NOT modify any files. End your reply with EXACTLY one line: `VERDICT: APPROVED` if the plan is sound enough to implement, or `VERDICT: REVISE` if it still has material problems.
+> You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to redesign it. If an `intent.md` exists, read it first as the authoritative goal — everything must serve it. Read the plan at `PLAN.md` (and any repo files you need; you are read-only). Decisions marked LOCKED are settled by the product owner: flag one ONLY if genuinely broken (correctness, security, feasibility), never propose an alternative design for it — you are a reviewer, not the architect. Otherwise identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, wrong assumptions, observability gaps, simpler alternatives. For each, give a one-line fix. Do NOT modify any files. End your reply with EXACTLY one line: `VERDICT: APPROVED` if the plan is sound enough to implement, or `VERDICT: REVISE` if it still has material problems.
 
 **Round 1** (creates the session — capture `thread_id`):
 
@@ -104,12 +104,25 @@ Both `codex exec` and `codex exec resume` support `--json` (stream → parse `th
 
 **Each round, after Codex returns:**
 1. Read `/tmp/codex-verdict.txt`. Append to `LOG_FILE`: `## Round <n> — Codex` + the full critique.
-2. Grep the last line for the verdict token.
+2. **Claude is the architect; Codex advises.** Gauge every finding against the goal (and `intent.md` if it exists) — a finding that redesigns a LOCKED decision that isn't actually broken, or pulls the plan off-goal, is rejected and logged "off-intent." Don't take Codex at face value and change every decision.
+3. Grep the last line for the verdict token.
    - `VERDICT: APPROVED` → break the loop, go to Step 3 (converged).
-   - `VERDICT: REVISE` → Claude reads the critique, decides **what's actually worth acting on** (Claude has final say — Codex advises, it does not command). Revise `PLAN_FILE`. Append to `LOG_FILE`: `### Claude's response` + what you changed and what you rejected and why. Increment `ROUND`.
-3. If `ROUND > MAX_ROUNDS` → break to Step 3 (deadlock).
+   - `VERDICT: REVISE` → Claude decides **what's actually worth acting on** (final say — reject off-intent + low-ROI *with a logged reason*, not just factual wrongness). Revise `PLAN_FILE`. Append to `LOG_FILE`: `### Claude's response` + what changed, what was rejected, why. Increment `ROUND`.
+4. If `ROUND > MAX_ROUNDS` → break to Step 3 (deadlock).
+
+### Act 2 discipline — direction over round-count
+
+`MAX_ROUNDS` (5) is a ceiling, not a target. The reviewer's only way to add value is more `REVISE` findings — it never says "delete half of this" — so the plan grows unless you fight it.
+
+**Trajectory check — classify each round in `LOG_FILE`, one word: CONVERGING or SPIRALING.**
+- Converging: Codex *concedes/closes* prior findings; new ones are tightening (spec gaps, edge cases), not architectural; count trending down.
+- Spiraling (any one): the same finding recircles reframed; the round only *added guards*, no decision changed; the plan grew again with nothing resolved.
+
+**On a spiraling round, stop folding and step out:** ask the altitude question — *"what's the irreversible-harm profile — do the elaborate and simple versions differ on it? If not, the machinery is theater"* — and judge each finding on ROI + goal, not just truth. Two spiraling rounds in a row → the loop won't converge on merits; stop early and hand the user the framing question (optionally one fresh, cold third-model read). **Re-consolidate, don't patch-fold:** after any reversal, rewrite that `PLAN.md` section clean.
 
 ### Step 3 — Resolution (human gate #2)
+
+**Before declaring APPROVED, run ONE cold check** — a fresh Codex thread, no memory of the rounds, the plain neutral prompt (nothing about "final round"/"downgrade nits"). Still REVISE cold = the convergence was biased; treat as real signal, not a formality. Converged = APPROVED-in-loop AND cold-check-clean.
 
 **If APPROVED:** Present to the user — the final `PLAN_FILE`, a 3-bullet summary of what the argument improved, and the round count. Ask: *"Plan survived N rounds of Codex. Implement it now — Codex builds it (`/codex-build`), Claude builds it, or stop here?"* Only on a yes is code written. **No code is written during the loop.** If the user picks Codex, invoke the `codex-build` skill with `SPEC_FILE=PLAN.md` and the same `LOG_FILE` — roles flip (Codex writes, Claude reviews the diff) and the build rounds append to the same log.
 
@@ -118,8 +131,10 @@ Both `codex exec` and `codex exec resume` support `--json` (stream → parse `th
 ## Hard rules
 
 - Codex is read-only EVERY round — `-s read-only` for the first call, `-c sandbox_mode="read-only"` for every resume (resume has no `-s`). It never writes. If you're tempted to give it write access, stop — that's a different skill.
-- The loop ALWAYS terminates at `MAX_ROUNDS`. No unbounded recursion.
-- Claude is the final arbiter on every REVISE — incorporate good critiques, reject bad ones *with a reason logged*. Don't cave to Codex on everything (that defeats the cross-model check) and don't ignore it (that defeats the point).
+- The loop ALWAYS terminates at `MAX_ROUNDS` (5) — but **direction beats round-count**: classify each round CONVERGING/SPIRALING; on a spiraling round step out (altitude question) instead of folding; re-consolidate after any reversal.
+- **Codex is a reviewer, not the architect.** Claude stays the architect and gauges findings against the goal (and `intent.md` if present); don't reverse decisions at face value.
+- Claude is the final arbiter on every REVISE — incorporate real flaws, reject the rest *with a logged reason*: off-intent and not-worth-the-ROI are valid rejections, not just factual wrongness. Don't cave to everything (defeats the cross-model check) and don't ignore it (defeats the point).
+- **One cold check** (fresh Codex, neutral prompt, no memory) gates every APPROVED — never lead the reviewer toward it.
 - Code only after human gate #2.
 - `LOG_FILE` is the deliverable — it tells the whole story of the argument. Keep it complete.
 
@@ -128,4 +143,5 @@ Both `codex exec` and `codex exec resume` support `--json` (stream → parse `th
 - Don't use this to review existing code — that's `/codex:review`.
 - Don't pin a `-codex` model variant on ChatGPT-account auth — it 400s.
 - Don't skip the log — the argument transcript is the most valuable artifact.
-- Don't let Codex edit files. Read-only, always.
+- Don't let Codex edit files or re-architect — it flags flaws bounded by the goal/intent; it doesn't redesign LOCKED decisions. Read-only, always.
+- Don't lead the reviewer toward APPROVED — no "last round"/"downgrade nits" framing; same neutral prompt every round.

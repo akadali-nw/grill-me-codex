@@ -16,6 +16,8 @@ You enter at two points: answering the grill, and signing off the converged plan
 
 ## ACT 1 — GRILL WITH DOCS (you ↔ Claude)
 
+**Posture — non-technical client consultation.** Same as `grill-me-codex`: ask simple, plain, one-at-a-time questions; accept and refine messy brain-dumps; own the technical HOW yourself and *explain* it plainly rather than extracting decisions from the user; a "why did you do that?" is a request to understand, not a correction; relay everything non-technically. The domain-modeling below (glossary, scenarios, ADRs) is *your* tool for sharpening the plan — translate its results into plain language for the user; don't make them speak DDD.
+
 <what-to-do>
 
 Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
@@ -102,7 +104,7 @@ If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](
 
 ### Handoff to Act 2
 
-When the decision tree is resolved, the glossary/ADRs are updated, and we're aligned, **write the agreed plan to `PLAN.md`** (use the canonical terms from `CONTEXT.md`), then run Act 2:
+When the decision tree is resolved, the glossary/ADRs are updated, and we're aligned, **play the whole thing back to the user non-technically to confirm**, then write **`intent.md`** (the plain-language goal of record — same shape as in `grill-me-codex`: what they want / why / priorities / non-goals / success) and translate it into **`PLAN.md`** (use the canonical terms from `CONTEXT.md`), then run Act 2:
 
 ```markdown
 # Plan: <task>
@@ -152,7 +154,7 @@ Hand the locked plan to Codex for adversarial review. Mechanics verified end-to-
 Invoked with e.g. `rounds=3` → use it. Echo resolved values first.
 
 ### Review prompt (each round)
-> You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to be agreeable. Read the plan at `PLAN.md` (and `CONTEXT.md`/ADRs for the domain language) and any repo files you need (you are read-only). Identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, domain-language mismatches, wrong assumptions, observability gaps, simpler alternatives. For each, give a one-line fix. Do NOT modify any files. End with EXACTLY one line: `VERDICT: APPROVED` or `VERDICT: REVISE`.
+> You are an adversarial reviewer for an implementation plan. Be skeptical and specific — your job is to find what breaks, not to redesign it. Read `intent.md` first (the authoritative goal — everything must serve it), then `PLAN.md` (and `CONTEXT.md`/ADRs for the domain language) and any repo files you need (you are read-only). Decisions marked LOCKED are settled by the product owner: flag one ONLY if genuinely broken (correctness, security, feasibility), never propose an alternative design for it — you are a reviewer, not the architect. Otherwise identify concrete flaws: security holes, race conditions, missing edge cases, schema conflicts, domain-language mismatches, wrong assumptions, observability gaps, simpler alternatives. For each, give a one-line fix. Do NOT modify any files. End with EXACTLY one line: `VERDICT: APPROVED` or `VERDICT: REVISE`.
 
 ### Round 1 — fresh session (capture `thread_id`)
 ```bash
@@ -177,20 +179,33 @@ The `< /dev/null` redirect is required on the resume call too — same non-inter
 
 ### Each round
 1. Read verdict file; append `## Round <n> — Codex` + critique to `LOG_FILE`.
-2. Last line verdict: `APPROVED` → Resolution (converged); `REVISE` → Claude decides what's worth acting on (final arbiter), revise `PLAN_FILE`, append `### Claude's response` (what changed/rejected + why), increment.
-3. round > `MAX_ROUNDS` → Resolution (deadlock).
+2. **Gauge every finding against `intent.md`** — Claude is the architect, Codex advises. Off-intent findings, and redesigns of LOCKED decisions that aren't actually broken, are rejected and logged "off-intent." Don't take Codex at face value.
+3. Verdict: `APPROVED` → Resolution (converged); `REVISE` → Claude decides what's worth acting on (final arbiter — reject off-intent + low-ROI *with a logged reason*), revise `PLAN_FILE`, append `### Claude's response` (what changed/rejected + why). A genuinely-broken LOCKED decision goes back to the client **non-technically** ("needs your input") → update `intent.md` if intent moved. Re-check `PLAN.md` still serves `intent.md` before the next round. Increment.
+4. round > `MAX_ROUNDS` → Resolution (deadlock).
+
+### Act 2 discipline — direction over round-count
+
+`MAX_ROUNDS` (5) is a ceiling, not a target. The reviewer's only way to add value is more `REVISE` findings — it never says "delete half of this" — so the plan grows unless you fight it.
+
+**Trajectory check — classify each round in `LOG_FILE`, one word: CONVERGING or SPIRALING.**
+- Converging: Codex *concedes/closes* prior findings; new ones are tightening (spec gaps, edge cases), not architectural; count trending down.
+- Spiraling (any one): the same finding recircles reframed; the round only *added guards*, no decision changed; the plan grew again with nothing resolved.
+
+**On a spiraling round, stop folding and step out:** ask the altitude question — *"what's the irreversible-harm profile — do the elaborate and simple versions differ on it? If not, the machinery is theater"* — and judge each finding on ROI + intent, not just truth. Two spiraling rounds in a row → the loop won't converge on merits; stop early and hand the user the framing question (optionally one fresh, cold third-model read). **Re-consolidate, don't patch-fold:** after any reversal, rewrite that `PLAN.md` section clean.
 
 ### Resolution (you sign off)
-- **APPROVED:** present final plan + 3-bullet summary of what the two acts improved + round count. Ask: implement now — Codex builds it (`/codex-build`), Claude builds it, or stop? No code during either act.
+- **Before declaring APPROVED, run ONE cold check** — a fresh Codex thread, no memory of the rounds, plain neutral prompt (nothing about "final round"/"downgrade nits"). Still REVISE cold = the convergence was biased; treat as real signal. Converged = APPROVED-in-loop AND cold-check-clean.
+- **APPROVED:** relay non-technically — confirm `intent.md` is served + 3-bullet plain summary + round count. Ask: build now — Codex builds it (`/codex-build`), Claude builds it, or stop? No code during either act.
 - **Deadlock (cap hit, no APPROVED):** list unresolved points + Claude's counter-position; hand to user. Don't fake convergence.
 - **Act 3 (optional):** user picks Codex → invoke the `codex-build` skill with `SPEC_FILE=PLAN.md` and the same `LOG_FILE`. Roles flip: Codex writes with full access, Claude reviews the diff + runs the proof; build rounds append to the same log.
 
 ---
 
 ## Hard rules
-- Act 1 precedes Act 2. `CONTEXT.md` stays a glossary only — no implementation details.
+- Act 1 is a non-technical client consultation (see Posture); precedes Act 2. `CONTEXT.md` stays a glossary only — no implementation details. `intent.md` is the plain-language constitution; `PLAN.md` is its technical translation.
 - Codex read-only EVERY round (`-s read-only` first, `-c sandbox_mode="read-only"` on resume — resume has no `-s`). Never writes.
-- Loop ALWAYS terminates at `MAX_ROUNDS`. Claude is final arbiter on REVISE (reject with logged reason). Code only after sign-off. `LOG_FILE` is the deliverable.
+- **Codex is a reviewer, not the architect** — gauge every finding against `intent.md`; don't reverse decisions at face value. Direction beats round-count (CONVERGING/SPIRALING; step out on a spiral). One cold check gates APPROVED; never lead the reviewer toward it. Everything to the client stays non-technical.
+- Loop ALWAYS terminates at `MAX_ROUNDS`. Claude is final arbiter on REVISE (reject off-intent + low-ROI with a logged reason). Code only after sign-off. `LOG_FILE` is the deliverable.
 
 ## What NOT to do
-- Don't review already-written code (`/codex:review`). Don't pin `-codex` variants on ChatGPT auth. Don't let Codex edit files. Don't skip Act 1.
+- Don't review already-written code (`/codex:review`). Don't pin `-codex` variants on ChatGPT auth. Don't let Codex edit files or re-architect. Don't skip Act 1. Don't lead the reviewer toward APPROVED. Don't turn the consultation technical or treat a client question as a correction.
