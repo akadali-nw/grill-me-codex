@@ -95,6 +95,11 @@ Initialize `PLAN-REVIEW-LOG.md`:
 Act 1 (consult) complete — intent.md captured + confirmed with the user, PLAN.md drafted. MAX_ROUNDS=<n>.
 ```
 
+**Translation discipline — the plan must trace to the intent:**
+- **No silent new scope.** Every element of `PLAN.md` must trace to something in `intent.md`; the plan may not add a goal or feature the intent doesn't have. If translating surfaces something genuinely needed, that's a **new intent item** — surface it to the client non-technically, add it to `intent.md` first, then plan it.
+- **Default to the smallest realization that satisfies the intent.** When a plain intent item has several technical solutions of different weight (e.g. "ping me when done" → an in-session ping *or* standing up an external notification service), pick the **minimal** one by default. Don't reach for the heavier build; if a bigger option might genuinely be wanted, raise it as an *optional* choice non-technically — never bake it in. *(Real miss: "ping when done" got specced as an external `ntfy` service the client never asked for, caught only because the client noticed.)*
+- **Show your grounding at handoff.** State in plain terms how each intent item was resolved — "your 'ping when done' → an in-session ping, deliberately not an external service" — so the client sees the mapping instead of hunting unfamiliar terms in a technical doc.
+
 ---
 
 ## ACT 2 — REVIEW (Claude ↔ Codex)
@@ -199,6 +204,7 @@ If the user picks Codex: hand the APPROVED `PLAN.md` to Codex via `/offload` —
 - Act 1 is a **non-technical client consultation** — plain language, simple one-at-a-time questions, Claude owns the HOW. Capture intent in `intent.md` and confirm it with the user before Act 2.
 - `intent.md` is the constitution — non-technical, stable, the goal every round is measured against. `PLAN.md` is Claude's technical translation of it.
 - **Every mode captures to the idea registry** (`<notes>/ideas/<slug>/` + top `index.md`): all thinking (intent / plan / log) lives there for every status; a built idea's **code** goes to a project repo, its thinking never does. Dedup against `index.md` when an idea comes in. Registry docs auto-commit + **auto-push** (they're notes); the code build is commit-only, no push.
+- **Plan traces to intent.** `PLAN.md` adds no goal or feature absent from `intent.md`; default to the smallest realization that satisfies each intent item; surface anything heavier or new to the client (non-technically) and fold it into `intent.md` first — never silently. Show the client how each intent item was resolved at handoff.
 - **`review` knob:** `off` = capture intent, stop (parked, no Codex); `light` = one gentle surface pass (no loop, no cold check); `full` (default) = the intensive loop. Echo the resolved mode at kickoff.
 - Codex is read-only EVERY round — `-s read-only` first call, `-c sandbox_mode="read-only"` on every resume (resume has no `-s`). It never writes.
 - **Codex is a reviewer, not the architect.** Claude stays the architect and gauges every finding against `intent.md`; don't take Codex at face value and reverse every decision. LOCKED decisions change only if genuinely broken — and that goes back to the client, non-technically.
