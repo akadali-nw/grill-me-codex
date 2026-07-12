@@ -38,7 +38,9 @@ Run this like a **non-technical client consultation.** The user knows the *probl
 - **Own the HOW; explain, don't extract.** Implementation decisions — algorithms, naming, syntax, data structures, complexity — are *yours*. Decide them; never ask the client to adjudicate them. When they ask "how does this work" or "why did you do it that way," that is a request to *understand*, not a signal you erred and must reverse. Explain it plainly, then keep the decision — they'll rule "makes sense" or "let's do it another way." A question is not a correction.
 - **Explore the code yourself** when a question can be answered there instead of asked.
 
-**When the client is fully heard**, play the whole thing back to them **non-technically — every corner** — so they confirm their intent was captured as they meant it. Then write **`intent.md`** (the authoritative, plain-language statement of what they want — the constitution the rest of the flow is measured against):
+**When you believe the client is fully heard — before spending tokens on the full playback, check in first.** Say plainly: *"I think I've got everything I need. Anything you want to add, or ready for me to summarize it back?"* Then wait. Only once they say ready do you produce the summary — don't summarize, collect three more additions, and re-summarize; that round-trip is the token waste to avoid.
+
+**Once they're ready**, play the whole thing back to them **non-technically — every corner** — so they confirm their intent was captured as they meant it. Then write **`intent.md`** (the authoritative, plain-language statement of what they want — the constitution the rest of the flow is measured against):
 
 ```markdown
 # Intent: <task>
