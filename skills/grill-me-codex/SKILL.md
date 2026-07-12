@@ -184,12 +184,12 @@ Spiraling (any one — stop folding):
 
 ### Resolution (you sign off — final gate)
 - **Before you declare APPROVED, run ONE cold check.** Spawn a *fresh* Codex thread — no memory of the rounds, the plain neutral review prompt, nothing about "final round" or "downgrade nits." A same-session APPROVE can just echo your own framing; if a cold thread still says REVISE, the convergence was biased — treat its findings as real signal, not a formality. Converged = APPROVED-in-loop **and** cold-check-clean.
-- **APPROVED:** relay to the client **non-technically** — confirm `intent.md` is fully served, give a 3-bullet plain-language summary of what the two acts improved, and the round count. Ask: *"This matches everything in intent.md and survived N rounds of Codex. Build it now — Codex builds it (`/codex-build`), Claude builds it, or stop here?"* Code only on a yes. **No code is written during either act.**
+- **APPROVED:** relay to the client **non-technically** — confirm `intent.md` is fully served, give a 3-bullet plain-language summary of what the two acts improved, and the round count. Ask: *"This matches everything in intent.md and survived N rounds of Codex. Build it now — hand it to Codex via `/offload` (medium/high), Claude builds it, or stop here?"* Code only on a yes. **No code is written during either act.**
 - **MAX_ROUNDS hit without APPROVED (deadlock):** do NOT fake convergence. List each unresolved point + Claude's counter-position; hand it to the user to break the tie. A flagged disagreement beats a false "approved."
 
-### ACT 3 (optional) — BUILD (Codex ↔ Claude, roles flipped)
+### ACT 3 (optional) — BUILD
 
-If the user picks Codex: invoke the `codex-build` skill with `SPEC_FILE=PLAN.md` and the same `LOG_FILE` — it appends `## Act 3 — Build` to the log, so one artifact tells the whole story (grilled → reviewed → built → verified). Roles flip: Codex writes the code with full access, Claude reviews the diff and runs the proof. If the user picks Claude, implement directly as usual.
+If the user picks Codex: hand the APPROVED `PLAN.md` to Codex via `/offload` — **medium** (Codex writes, Claude reviews the diff / verifies builds+tests) or **high** (conserve tokens, commit gate as the net). Codex implements against the plan; the built **code** goes to its project repo, while the plan + log stay in the idea registry. If the user picks Claude, implement directly as usual. Either way, set the idea's `Status` to `built` in `index.md` and link the repo.
 
 ---
 

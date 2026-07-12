@@ -124,7 +124,7 @@ Both `codex exec` and `codex exec resume` support `--json` (stream → parse `th
 
 **Before declaring APPROVED, run ONE cold check** — a fresh Codex thread, no memory of the rounds, the plain neutral prompt (nothing about "final round"/"downgrade nits"). Still REVISE cold = the convergence was biased; treat as real signal, not a formality. Converged = APPROVED-in-loop AND cold-check-clean.
 
-**If APPROVED:** Present to the user — the final `PLAN_FILE`, a 3-bullet summary of what the argument improved, and the round count. Ask: *"Plan survived N rounds of Codex. Implement it now — Codex builds it (`/codex-build`), Claude builds it, or stop here?"* Only on a yes is code written. **No code is written during the loop.** If the user picks Codex, invoke the `codex-build` skill with `SPEC_FILE=PLAN.md` and the same `LOG_FILE` — roles flip (Codex writes, Claude reviews the diff) and the build rounds append to the same log.
+**If APPROVED:** Present to the user — the final `PLAN_FILE`, a 3-bullet summary of what the argument improved, and the round count. Ask: *"Plan survived N rounds of Codex. Implement it now — hand it to Codex via `/offload` (medium/high), Claude builds it, or stop here?"* Only on a yes is code written. **No code is written during the loop.** If the user picks Codex, `/offload` the plan — medium (Codex writes, Claude reviews the diff) or high (conserve tokens, commit gate as the net).
 
 **If MAX_ROUNDS hit without APPROVED (deadlock):** Do NOT pretend it converged. Surface the unresolved disagreements explicitly: list each point Codex still flags and Claude's counter-position. Hand it to the human to break the tie. This is a legitimate, useful outcome — a flagged disagreement beats a false "approved."
 
