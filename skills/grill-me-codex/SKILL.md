@@ -1,6 +1,6 @@
 ---
 name: grill-me-codex
-description: Two-act plan hardening. ACT 1 (you ↔ Claude) — Claude consults you like a non-technical client, one simple question at a time (brain-dumps welcome — Claude captures and refines them), owning the technical HOW itself and capturing your goal in intent.md. ACT 2 (Claude ↔ Codex) — Claude translates intent.md into a technical PLAN.md and OpenAI Codex adversarially reviews it in a read-only sandbox (VERDICT:APPROVED/REVISE) bounded by your intent, Claude revises and re-submits to the SAME Codex session until APPROVED or a MAX_ROUNDS cap, then you sign off before any code. Use when the user says "/grill-me-codex", "grill me then have codex review", "grill me and stress-test the plan", "interview me about this plan then get a second model on it", or is about to build something high-stakes (auth, schema, concurrency, migrations, payments) and wants both alignment AND a cross-model sanity check before implementation. Modes via the review arg: review=off (Act 1 consultation → parks the idea as a durable note in notes/ideas + index, no Codex), review=light (one quick surface pass), review=full (default, the intensive multi-round loop). Builds on Matt Pocock's grill-me (MIT). For the docs-aware variant use /grill-with-docs-codex; if you already have a plan and want only the Codex review use /codex-review. NOT for reviewing already-written code (use /codex:review) and NOT for trivial changes.
+description: Two-act plan hardening. ACT 1 (you ↔ Claude) — Claude consults you like a non-technical client, one simple question at a time (brain-dumps welcome — Claude captures and refines them), owning the technical HOW itself and capturing your goal in intent.md. ACT 2 (Claude ↔ Codex) — Claude translates intent.md into a technical PLAN.md and OpenAI Codex adversarially reviews it in a read-only sandbox (VERDICT:APPROVED/REVISE) bounded by your intent, Claude revises and re-submits to the SAME Codex session until APPROVED or a MAX_ROUNDS cap, then you sign off before any code. Use when the user says "/grill-me-codex", "grill me then have codex review", "grill me and stress-test the plan", "interview me about this plan then get a second model on it", or is about to build something high-stakes (auth, schema, concurrency, migrations, payments) and wants both alignment AND a cross-model sanity check before implementation. Every run captures the intent to a durable idea registry (notes/ideas/<slug>/ + top index.md); the review arg sets what happens next: review=off (stop, parked, no Codex), review=light (one quick surface pass), review=full (default, the intensive multi-round loop). Builds on Matt Pocock's grill-me (MIT). For the docs-aware variant use /grill-with-docs-codex; if you already have a plan and want only the Codex review use /codex-review. NOT for reviewing already-written code (use /codex:review) and NOT for trivial changes.
 ---
 
 # Grill-Me-Codex — Get Grilled, Then Get Reviewed
@@ -11,6 +11,18 @@ Two acts, two different jobs:
 - **Act 2 fixes the #2 failure mode: a plan that sounds right but breaks.** Claude translates `intent.md` into a technical plan (`PLAN.md`) and a *different model* (Codex) adversarially attacks it — bounded by your intent, cross-model, no echo chamber.
 
 You enter at two points only: the consultation, and signing off the converged plan. Codex is read-only the whole time and never touches a file. Everything relayed to you stays non-technical.
+
+---
+
+## Idea registry — where every intent lives (all modes)
+
+Every consultation produces an intent worth keeping, built or not. **All of them — and all their thinking — live in one place: the user's idea registry**, never in a project's codebase (that repo has its own README/CLAUDE.md; the *why* behind an idea doesn't belong there).
+
+- **One folder per idea:** `<notes>/ideas/<slug>/` holds `intent.md` (always), and once a plan exists, `PLAN.md` + `PLAN-REVIEW-LOG.md` too. This is the durable home for *all* of them at every status — even a built idea's plan stays here; only its **code** goes to a project repo. *(The concrete notes path may be in the user's config/memory — check there; else ask.)*
+- **One index at the top:** `<notes>/ideas/index.md` — a single table (`Idea · Hook · Captured · Status · Built-in`). This is your scan surface: **read the index, never walk the folder tree.** Create it if absent.
+- **Dedup when an idea comes in:** when the user names or writes a new idea, check `index.md` first — if it's already there, offer to **resume / build on** it instead of duplicating. (Read the index only, once, when there's actually an idea to match — not on unrelated runs.)
+- **Status ladder:** `parked` (intent only) → `planned` (intent + plan + log, reviewed but not built) → `built` (all three still here; code shipped to a repo, `Built-in` links to it) / `dropped` (kept for the record).
+- **These are documents, not code — auto-commit AND auto-push** the registry (intent / plan / log / index) to the notes vault. No troubleshooting risk; keeping thoughts synced beats ceremony. **The code implementation of an idea follows the usual rule: commit only, never auto-push.**
 
 ---
 
@@ -48,16 +60,12 @@ _Captured with <user> — plain language, non-technical. This is the goal of rec
 <how the client will know it worked>
 ```
 
-The intent is **non-technical and stable** — it changes only when the *client* changes their mind, never for technical churn. **Now branch on `review`:**
+The intent is **non-technical and stable** — it changes only when the *client* changes their mind, never for technical churn.
 
-**`review=off`** — park the idea to revisit later. Capture the intent as a **durable note in the user's notes/ideas area**, NOT the working dir (a fixed `intent.md` in cwd gets clobbered by the next idea — that's the whole reason parking goes to a vault):
-- Write it to `<notes>/ideas/<slug>.md` — **one file per idea, never overwritten.** Use the intent structure above, plus a `**Status:** parked` line in the header.
-- Add a row to `<notes>/ideas/index.md` (create it if absent) — a scannable table: `Idea · Hook (one line) · Captured (date) · Status`.
-- Then **stop.** No `PLAN.md`, no Codex, no log. Present the parked idea back to the client in plain language.
-- **Revisit later:** skim `index.md`, pick an idea, re-run this skill on its note (that note *is* the intent) at `review=light`/`full`. When a parked idea's fate is decided, flip its `Status` to `built` or `dropped` (in both the note and the index row).
-- *(The user's notes/ideas location may be set in their config/memory — check there; else ask where to park it.)*
+**Capture it now — in every mode — to the idea registry** (above): write `intent.md` into `<notes>/ideas/<slug>/` and add/update its `index.md` row. Then branch on `review`:
 
-**`review=light` / `review=full`** — write the intent to `intent.md` in the working dir, then translate it into `PLAN.md` (Claude's technical work, not the client's — what Codex bites):
+- **`review=off`** → done. Status `parked`. Present the idea back to the client in plain language and stop — no `PLAN.md`, no Codex. (Revisit later from `index.md`; re-run at `light`/`full`.)
+- **`review=light` / `review=full`** → continue. Translate the intent into `PLAN.md` **in the same idea folder** (Claude's technical work, not the client's — what Codex bites), init the log there, and run Act 2. Status is finalized at sign-off: `built` (code shipped to a repo), `planned` (reviewed, not built), or `dropped`.
 
 ```markdown
 # Plan: <task>
@@ -89,12 +97,12 @@ Act 1 (consult) complete — intent.md captured + confirmed with the user, PLAN.
 
 ## ACT 2 — REVIEW (Claude ↔ Codex)
 
-Now hand the locked plan to Codex for adversarial review. Same engine, mechanics verified end-to-end (2026-06-04).
+Now hand the locked plan to Codex for adversarial review. Same engine, mechanics verified end-to-end (2026-06-04). `PLAN.md` and `PLAN-REVIEW-LOG.md` live in the idea folder (`<notes>/ideas/<slug>/`) — run the review with that folder as the working dir (and, if the plan targets an existing codebase, with that repo readable to Codex). They stay in notes and auto-push; the project repo only ever gets code.
 
 ### Review modes
 - **`review=full` (default):** everything below — up to `MAX_ROUNDS`, trajectory check, cold check.
 - **`review=light`:** ONE surface pass, then stop. Use the light prompt below, run Round 1 only, present the findings, Claude fixes the clearly-worth-it ones, done. No resume loop, no trajectory check, no cold check — a single pass can't spiral, so the heavy discipline doesn't apply. A gut-check, not a hardening.
-- **`review=off`** never reaches Act 2 — it parked the intent as a durable note in the user's `notes/ideas` vault (+ `index.md`, `Status: parked`). No PLAN.md.
+- **`review=off`** never reaches Act 2 — it captured the intent to the idea registry (folder + index), `Status: parked`. No PLAN.md.
 
 **Light-mode review prompt** (replaces the full prompt when `review=light`):
 > You are doing a quick sanity check on an implementation plan (read-only). Read `intent.md` (the goal) and `PLAN.md`. Flag ONLY clear, serious problems — security holes, broken assumptions, major missing pieces. Do NOT nitpick, hunt edge cases, or propose redesigns. If it's basically sound, say so. End with EXACTLY one line: `VERDICT: APPROVED` or `VERDICT: REVISE`.
@@ -108,7 +116,7 @@ Now hand the locked plan to Codex for adversarial review. Same engine, mechanics
 ### Tunables (read from args, else default)
 | Var | Default | Meaning |
 |-----|---------|---------|
-| `review` | `full` | `off` = Act 1 → park intent to notes/ideas (+ index), no PLAN.md/Codex; `light` = one gentle surface pass; `full` = the intensive loop below. See **Review modes**. |
+| `review` | `full` | Every mode captures the intent to the idea registry. `off` = stop there (parked, no Codex); `light` = one gentle surface pass; `full` = the intensive loop below. See **Review modes** + **Idea registry**. |
 | `MAX_ROUNDS` | `5` | Hard cap on review rounds (`full` mode). The loop ALWAYS terminates here. |
 | `PLAN_FILE` | `PLAN.md` | The plan Act 1 produced. |
 | `LOG_FILE` | `PLAN-REVIEW-LOG.md` | Append-only argument transcript. The artifact. |
@@ -188,7 +196,8 @@ If the user picks Codex: invoke the `codex-build` skill with `SPEC_FILE=PLAN.md`
 ## Hard rules
 - Act 1 is a **non-technical client consultation** — plain language, simple one-at-a-time questions, Claude owns the HOW. Capture intent in `intent.md` and confirm it with the user before Act 2.
 - `intent.md` is the constitution — non-technical, stable, the goal every round is measured against. `PLAN.md` is Claude's technical translation of it.
-- **`review` knob:** `off` = park the intent as a durable note in notes/ideas (+ index, Status), no PLAN.md/Codex; `light` = one gentle surface pass (no loop, no cold check); `full` (default) = the intensive loop. Echo the resolved mode at kickoff.
+- **Every mode captures to the idea registry** (`<notes>/ideas/<slug>/` + top `index.md`): all thinking (intent / plan / log) lives there for every status; a built idea's **code** goes to a project repo, its thinking never does. Dedup against `index.md` when an idea comes in. Registry docs auto-commit + **auto-push** (they're notes); the code build is commit-only, no push.
+- **`review` knob:** `off` = capture intent, stop (parked, no Codex); `light` = one gentle surface pass (no loop, no cold check); `full` (default) = the intensive loop. Echo the resolved mode at kickoff.
 - Codex is read-only EVERY round — `-s read-only` first call, `-c sandbox_mode="read-only"` on every resume (resume has no `-s`). It never writes.
 - **Codex is a reviewer, not the architect.** Claude stays the architect and gauges every finding against `intent.md`; don't take Codex at face value and reverse every decision. LOCKED decisions change only if genuinely broken — and that goes back to the client, non-technically.
 - The loop ALWAYS terminates at `MAX_ROUNDS` (5) — but **direction beats round-count**: classify each round CONVERGING/SPIRALING; on a spiraling round step out (altitude question) instead of folding; re-consolidate after any reversal.
